@@ -12,6 +12,8 @@ import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -19,6 +21,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import ru.est412.wordstrainermobile.model.Dictionary;
 import ru.est412.wordstrainermobile.model.DictionaryIterator;
@@ -34,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private int toShow;
 
     TextView[] tvLang;
+    TextView scalingTV;
     TextView tvCount;
     TextView tvTotal;
     TextView tvURI;
@@ -43,7 +48,15 @@ public class MainActivity extends AppCompatActivity {
     CheckBox cbReprtition;
     Menu menu;
 
+    private ScaleGestureDetector scaleGestureDetector;
+    private float scaleFactor = 1.0f;
+    public static final float MIN_SCALE_FACTOR = 0.5f;
+    public static final float MAX_SCALE_FACTOR = 3f;
+    Map<TextView, Float> initialSize;
+
     public static final String PREF_LAST_FILE = "lastFile";
+    public static final String PREF_SIZE_LANG_0 = "sizeLang0";
+    public static final String PREF_SIZE_LANG_1 = "sizeLang1";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
 
         dictIterator = new DictionaryIterator();
         tvLang = new TextView[]{findViewById(R.id.tvLang0), findViewById(R.id.tvLang1)};
+        initialSize = new HashMap<>();
         tvCount = findViewById(R.id.tvCount);
         tvTotal = findViewById(R.id.tvTotal);
         tvURI = findViewById(R.id.tvURI);
@@ -65,11 +79,21 @@ public class MainActivity extends AppCompatActivity {
         cbRepeat = findViewById(R.id.cbRepeat);
         cbReprtition = findViewById(R.id.cbRepetition);
 
+        scaleGestureDetector = new ScaleGestureDetector(this, new ScaleListener());
+
+        tvLang[0].setOnTouchListener(new TouchListener());
+        tvLang[1].setOnTouchListener(new TouchListener());
+
         SharedPreferences sPref = getPreferences(MODE_PRIVATE);
-        String lastFile = sPref.getString(PREF_LAST_FILE, "");
-        if (!lastFile.isEmpty()) {
+        String lastFile = sPref.getString(PREF_LAST_FILE, null);
+        if (lastFile != null) {
             tvURI.setText("Last: " + lastFile);
         }
+
+        initialSize.put(tvLang[0], sPref.getFloat(PREF_SIZE_LANG_0, tvLang[0].getTextSize()));
+        initialSize.put(tvLang[1], sPref.getFloat(PREF_SIZE_LANG_1, tvLang[1].getTextSize()));
+        tvLang[0].setTextSize(TypedValue.COMPLEX_UNIT_PX, initialSize.get(tvLang[0]));
+        tvLang[1].setTextSize(TypedValue.COMPLEX_UNIT_PX, initialSize.get(tvLang[1]));
     }
 
     @Override
@@ -112,6 +136,11 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+        SharedPreferences sPref = getPreferences(MODE_PRIVATE);
+        SharedPreferences.Editor ed = sPref.edit();
+        ed.putFloat(PREF_SIZE_LANG_0, tvLang[0].getTextSize());
+        ed.putFloat(PREF_SIZE_LANG_1, tvLang[1].getTextSize());
+        ed.apply();
         super.onPause();
     }
 
@@ -198,10 +227,12 @@ public class MainActivity extends AppCompatActivity {
         dictIterator.setActiveLangs(cbNativeFirst.isChecked() ? 1 : 0);
         tvCount.setText("" + dictIterator.getIdxWordsCounder(dictIterator.getCurLang()));
         tvTotal.setText("" + dictIterator.getIdxWordsNumber(dictIterator.getCurLang()));
-        float tmp0 = tvLang[0].getTextSize();
-        float tmp1 = tvLang[1].getTextSize();
-        tvLang[0].setTextSize(TypedValue.COMPLEX_UNIT_PX, tmp1);
-        tvLang[1].setTextSize(TypedValue.COMPLEX_UNIT_PX, tmp0);
+        float tmpSize = tvLang[0].getTextSize();
+        tvLang[0].setTextSize(TypedValue.COMPLEX_UNIT_PX, tvLang[1].getTextSize());
+        tvLang[1].setTextSize(TypedValue.COMPLEX_UNIT_PX, tmpSize);
+        String tmpText = tvLang[0].getText().toString();
+        tvLang[0].setText(tvLang[1].getText());
+        tvLang[1].setText(tmpText);
     }
 
     public void onCbRepeat(View view) {
@@ -272,6 +303,26 @@ public class MainActivity extends AppCompatActivity {
 //            buttonNext.disableProperty().bind(dictIterator.showEmpty);
 //        }
         btnNext.setText("Next");
+    }
+
+    private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        @Override
+        public boolean onScale(ScaleGestureDetector scaleGestureDetector){
+            scaleFactor *= scaleGestureDetector.getScaleFactor();
+            scaleFactor = Math.max(MIN_SCALE_FACTOR, Math.min(scaleFactor, MAX_SCALE_FACTOR));
+            float size = initialSize.get(scalingTV) * scaleFactor;
+            scalingTV.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
+            return true;
+        }
+    }
+
+    private class TouchListener implements View.OnTouchListener {
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            scalingTV = (TextView) v;
+            scaleGestureDetector.onTouchEvent(event);
+            return true;
+        }
     }
 
 }
