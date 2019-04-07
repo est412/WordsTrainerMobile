@@ -72,6 +72,7 @@ public class DictionaryIterator {
 	}
 	
 	public void initIndex() {
+		if (dict == null) return;
 		idxWordsNumber[0] = dict.getWordsNumber();
 		wordsIndex.get(0).clear();
 		wordsIndex.get(1).clear();
