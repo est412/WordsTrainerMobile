@@ -2,14 +2,13 @@ package ru.est412.wordstrainermobile;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.support.v4.provider.DocumentFile;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Base64;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -20,7 +19,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 
 import ru.est412.wordstrainermobile.model.Dictionary;
 import ru.est412.wordstrainermobile.model.DictionaryIterator;
@@ -43,7 +41,9 @@ public class MainActivity extends AppCompatActivity {
     CheckBox cbNativeFirst;
     CheckBox cbRepeat;
     CheckBox cbReprtition;
-    int curLang = 0;
+    Menu menu;
+
+    public static final String PREF_LAST_FILE = "lastFile";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,11 +64,18 @@ public class MainActivity extends AppCompatActivity {
         cbNativeFirst = findViewById(R.id.cbNativeFirst);
         cbRepeat = findViewById(R.id.cbRepeat);
         cbReprtition = findViewById(R.id.cbRepetition);
+
+        SharedPreferences sPref = getPreferences(MODE_PRIVATE);
+        String lastFile = sPref.getString(PREF_LAST_FILE, "");
+        if (!lastFile.isEmpty()) {
+            tvURI.setText("Last: " + lastFile);
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu, menu);
+        this.menu = menu;
         return true;
     }
 
@@ -138,6 +145,13 @@ public class MainActivity extends AppCompatActivity {
         tvURI.setText(path);
         dictIterator.setDictionary(dict);
         restart();
+
+        SharedPreferences sPref = getPreferences(MODE_PRIVATE);
+        SharedPreferences.Editor ed = sPref.edit();
+        ed.putString(PREF_LAST_FILE, path);
+        ed.apply();
+
+        menu.findItem(R.id.restart).setEnabled(true);
     }
 
     public String getFileName(Uri uri) {
